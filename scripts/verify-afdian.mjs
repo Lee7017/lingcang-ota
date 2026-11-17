@@ -14,18 +14,24 @@ if (!userId || !token) {
   process.exit(1)
 }
 
-async function request(endpoint, params) {
+async function request(baseUrl, endpoint, params) {
   const rawParams = JSON.stringify(params)
   const ts = Math.floor(Date.now() / 1000)
   const sign = createHash('md5')
     .update(token + 'params' + rawParams + 'ts' + ts + 'user_id' + userId)
     .digest('hex')
-  const response = await fetch('https://afdian.net/api/open/' + endpoint, {
+  let response
+  try {
+    response = await fetch(baseUrl + '/api/open/' + endpoint, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ user_id: userId, params: rawParams, ts, sign }),
-    signal: AbortSignal.timeout(20000)
-  })
+    signal: AbortSignal.timeout(15000)
+    })
+  } catch (error) {
+    const code = typeof error?.cause?.code === 'string' ? error.cause.code : error?.name || 'NETWORK_ERROR'
+    throw Object.assign(new Error(endpoint + ' 网络连接失败：' + code), { kind: 'network' })
+  }
   if (!response.ok) throw new Error(endpoint + ' 网络响应 HTTP ' + response.status)
   const data = await response.json()
   if (data?.ec !== 200) {
@@ -37,9 +43,21 @@ async function request(endpoint, params) {
 }
 
 try {
-  await request('ping', {})
-  console.log('爱发电 ping 验证成功，签名和身份有效。')
-  const result = await request('query-order', { page: 1 })
+  let usableBase = null
+  // 两个均为爱发电的公开域名；只在网络失败时切换，不绕过签名错误。
+  for (const base of ['https://afdian.com', 'https://afdian.net']) {
+    try {
+      await request(base, 'ping', {})
+      usableBase = base
+      console.log('爱发电 ping 验证成功；可用接口域名：' + new URL(base).hostname)
+      break
+    } catch (error) {
+      if (error.kind !== 'network') throw error
+      console.warn(new URL(base).hostname + '：' + error.message)
+    }
+  }
+  if (!usableBase) throw new Error('两个爱发电接口域名均无法连接，尚未验证 Token。')
+  const result = await request(usableBase, 'query-order', { page: 1 })
   if (!Array.isArray(result.data?.list)) throw new Error('query-order 返回内容缺少订单列表')
   const list = result.data.list
   const totalPages = result.data.total_page
