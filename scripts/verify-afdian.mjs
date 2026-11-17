@@ -47,7 +47,7 @@ try {
   // 两个均为爱发电的公开域名；只在网络失败时切换，不绕过签名错误。
   for (const base of ['https://afdian.com', 'https://afdian.net']) {
     try {
-      await request(base, 'ping', {})
+      await request(base, 'ping', { a: 333 })
       usableBase = base
       console.log('爱发电 ping 验证成功；可用接口域名：' + new URL(base).hostname)
       break
