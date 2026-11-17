@@ -4,6 +4,12 @@ on:
   schedule:
     - cron: '*/30 * * * *'
   workflow_dispatch:
+  # 同步逻辑或工作流更新时运行一次，便于验证；公开 JSON 提交不会触发循环。
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/ios-support.yml'
+      - 'scripts/sync-ios-support.mjs'
 
 # 仅允许提交公开统计文件，不能用于修改官网。
 permissions:
