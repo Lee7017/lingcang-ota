@@ -1,0 +1,44 @@
+name: Sync iOS support statistics
+
+on:
+  schedule:
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
+
+# 仅允许提交公开统计文件，不能用于修改官网。
+permissions:
+  contents: write
+
+concurrency:
+  group: ios-support-sync
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout OTA repository
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Query Afdian and build public-only statistics
+        env:
+          AFDIAN_USER_ID: ${{ secrets.AFDIAN_USER_ID }}
+          AFDIAN_API_TOKEN: ${{ secrets.AFDIAN_API_TOKEN }}
+          AFDIAN_PLAN_ID: ${{ secrets.AFDIAN_PLAN_ID }}
+          AFDIAN_SUPPORT_URL: ${{ vars.AFDIAN_SUPPORT_URL }}
+        run: node scripts/sync-ios-support.mjs
+      - name: Commit only changed public statistics
+        shell: bash
+        run: |
+          if git diff --quiet -- support/ios.json; then
+            echo "No changes to public statistics"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- support/ios.json
+          git commit -m "Update public iOS support statistics"
+          git push origin HEAD:main
