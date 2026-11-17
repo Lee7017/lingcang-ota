@@ -68,6 +68,15 @@ try {
     '；分页数：' + (totalPages ?? '未知') + '。不公开订单内容。')
   if (!planId) {
     console.log('尚未设置 AFDIAN_PLAN_ID：当前仅验证接口，不会将订单混入 iOS 筹款统计。')
+    // 商品页面 ID 不保证等同于方案 ID，通过已认证的接口验证后才能采用。
+    const itemId = 'd9aa8642e2b411f181af52540025c377'
+    try {
+      const planResult = await request(usableBase, 'query-plan', { plan_id: itemId })
+      console.log('商品链接 ID 是否为有效方案 ID：' +
+        (planResult.data?.plan?.plan_id === itemId ? '是' : '未确认'))
+    } catch (error) {
+      console.log('商品链接 ID 暂不能证实为方案 ID（只读接口失败）：' + error.message)
+    }
   } else {
     console.log('AFDIAN_PLAN_ID 已配置；第一页是否出现匹配订单：' +
       list.some(o => String(o?.plan_id ?? '') === planId) + '（仅供参考，不能代表全部分页）。')

@@ -38,7 +38,7 @@ async function queryPage(page) {
   // 爱发电官方 API 规定的签名算法（不是用户身份信息）。
   const sign = createHash('md5').update(token + 'params' + params + 'ts' + ts + 'user_id' + userId).digest('hex')
   const abort = AbortSignal.timeout(20000)
-  const response = await fetch('https://afdian.net/api/open/query-order', {
+  const response = await fetch('https://afdian.com/api/open/query-order', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ user_id:userId, params, ts, sign }),
@@ -52,7 +52,12 @@ async function queryPage(page) {
 
 async function main() {
   if (!userId || !token || !planId) {
-    console.log('未配置 AFDIAN_USER_ID / AFDIAN_API_TOKEN / AFDIAN_PLAN_ID，保持未接入状态。')
+    const missing = [
+      !userId && 'AFDIAN_USER_ID',
+      !token && 'AFDIAN_API_TOKEN',
+      !planId && 'AFDIAN_PLAN_ID'
+    ].filter(Boolean)
+    console.log('缺少配置：' + missing.join('、') + '，未查询订单，也不会发布筹款金额。')
     return
   }
   const previous = JSON.parse(await readFile(file, 'utf8'))
