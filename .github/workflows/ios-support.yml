@@ -35,13 +35,13 @@ jobs:
         env:
           AFDIAN_USER_ID: ${{ secrets.AFDIAN_USER_ID }}
           AFDIAN_API_TOKEN: ${{ secrets.AFDIAN_API_TOKEN }}
-          AFDIAN_PLAN_ID: ${{ secrets.AFDIAN_PLAN_ID }}
+          AFDIAN_PLAN_ID: ${{ secrets.AFDIAN_PLAN_ID || 'd9aa8642e2b411f181af52540025c377' }}
         run: node scripts/verify-afdian.mjs
       - name: Query Afdian and build public-only statistics
         env:
           AFDIAN_USER_ID: ${{ secrets.AFDIAN_USER_ID }}
           AFDIAN_API_TOKEN: ${{ secrets.AFDIAN_API_TOKEN }}
-          AFDIAN_PLAN_ID: ${{ secrets.AFDIAN_PLAN_ID }}
+          AFDIAN_PLAN_ID: ${{ secrets.AFDIAN_PLAN_ID || 'd9aa8642e2b411f181af52540025c377' }}
           AFDIAN_SUPPORT_URL: ${{ vars.AFDIAN_SUPPORT_URL || 'https://afdian.com/item/d9aa8642e2b411f181af52540025c377' }}
         run: node scripts/sync-ios-support.mjs
       - name: Commit only changed public statistics
