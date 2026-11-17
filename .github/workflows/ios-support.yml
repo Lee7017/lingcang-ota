@@ -2,7 +2,7 @@ name: Sync iOS support statistics
 
 on:
   schedule:
-    - cron: '*/5 * * * *'
+    - cron: '*/30 * * * *'
   workflow_dispatch:
 
 # 仅允许提交公开统计文件，不能用于修改官网。
