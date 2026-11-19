@@ -1,0 +1,61 @@
+name: Sync iOS support statistics
+
+on:
+  schedule:
+    # GitHub Actions 的最短间隔：每 5 分钟一次。
+    # 使用 03/08/.../58 分避开每小时 00 分的高峰；实际执行仍可能延迟或漏跑。
+    - cron: '3-59/5 * * * *'
+  workflow_dispatch:
+  # 工作流或同步脚本更新时运行一次，验证端到端查询。
+  # support/ios.json 提交不会再次触发，避免无限循环。
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/ios-support.yml'
+      - 'scripts/sync-ios-support.mjs'
+      - 'scripts/verify-afdian.mjs'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: ios-support-sync
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout OTA repository
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify API credentials and read-only order query
+        if: github.event_name != 'schedule'
+        env:
+          AFDIAN_USER_ID: ${{ secrets.AFDIAN_USER_ID }}
+          AFDIAN_API_TOKEN: ${{ secrets.AFDIAN_API_TOKEN }}
+          AFDIAN_PLAN_ID: ${{ secrets.AFDIAN_PLAN_ID || 'd9aa8642e2b411f181af52540025c377' }}
+        run: node scripts/verify-afdian.mjs
+      - name: Query Afdian and build public-only statistics
+        env:
+          AFDIAN_USER_ID: ${{ secrets.AFDIAN_USER_ID }}
+          AFDIAN_API_TOKEN: ${{ secrets.AFDIAN_API_TOKEN }}
+          AFDIAN_PLAN_ID: ${{ secrets.AFDIAN_PLAN_ID || 'd9aa8642e2b411f181af52540025c377' }}
+          AFDIAN_SUPPORT_URL: ${{ vars.AFDIAN_SUPPORT_URL || 'https://afdian.com/item/d9aa8642e2b411f181af52540025c377' }}
+        run: node scripts/sync-ios-support.mjs
+      - name: Commit only changed public statistics
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- support/ios.json; then
+            echo "No changes to public statistics"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- support/ios.json
+          git commit -m "Update public iOS support statistics"
+          git push origin HEAD:main
