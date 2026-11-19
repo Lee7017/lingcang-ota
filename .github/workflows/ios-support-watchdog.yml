@@ -1,0 +1,57 @@
+name: Watchdog - iOS support sync
+
+# 新建独立的 workflow ID，避免只依赖原工作流的 cron 注册。
+# 注意：这里仍使用 GitHub schedule，不等同于外部定时器，不能承诺准点触发。
+on:
+  schedule:
+    - cron: '11,41 * * * *'
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/ios-support-watchdog.yml'
+
+permissions:
+  contents: read
+  actions: write
+
+concurrency:
+  group: ios-support-watchdog
+  cancel-in-progress: false
+
+jobs:
+  recover:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout public snapshot
+        uses: actions/checkout@v4
+
+      - name: Check whether last real sync is too old
+        id: age
+        shell: bash
+        run: |
+          node <<'NODE'
+          const fs = require('node:fs')
+          let ageMinutes = Infinity
+          try {
+            const snapshot = JSON.parse(fs.readFileSync('support/ios.json', 'utf8'))
+            const timestamp = Date.parse(snapshot.syncedAt)
+            if (snapshot.status === 'live' && Number.isFinite(timestamp))
+              ageMinutes = Math.max(0, (Date.now() - timestamp) / 60000)
+          } catch (error) {
+            console.warn('公开统计文件不可读取，尝试重新同步：' + error.message)
+          }
+          const stale = ageMinutes >= 70
+          console.log('距上次真实同步的分钟数：' + (Number.isFinite(ageMinutes) ? ageMinutes.toFixed(1) : '未知'))
+          console.log('是否需要重新同步：' + stale)
+          fs.appendFileSync(process.env.GITHUB_OUTPUT, 'stale=' + stale + '\n')
+          NODE
+
+      - name: Trigger real sync from the same OTA repository
+        if: steps.age.outputs.stale == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api --method POST "repos/${GITHUB_REPOSITORY}/actions/workflows/ios-support.yml/dispatches" \
+            -f ref="${GITHUB_REF_NAME}"
+          echo '已请求运行 ios-support.yml；真正的同步结果以目标工作流为准。'
