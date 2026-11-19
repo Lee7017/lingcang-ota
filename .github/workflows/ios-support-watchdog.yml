@@ -41,7 +41,8 @@ jobs:
           } catch (error) {
             console.warn('公开统计文件不可读取，尝试重新同步：' + error.message)
           }
-          const stale = ageMinutes >= 70
+          // 修改/首次添加监测工作流时用 push 做一次端到端触发验证。
+          const stale = ageMinutes >= 70 || process.env.GITHUB_EVENT_NAME === 'push'
           console.log('距上次真实同步的分钟数：' + (Number.isFinite(ageMinutes) ? ageMinutes.toFixed(1) : '未知'))
           console.log('是否需要重新同步：' + stale)
           fs.appendFileSync(process.env.GITHUB_OUTPUT, 'stale=' + stale + '\n')
