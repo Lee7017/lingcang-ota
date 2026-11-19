@@ -2,7 +2,8 @@ name: Sync iOS support statistics
 
 on:
   schedule:
-    - cron: '*/30 * * * *'
+    # 避开 GitHub Actions 整点高峰；仍然每 30 分钟同步一次（UTC）。
+    - cron: '13,43 * * * *'
   workflow_dispatch:
   # 同步逻辑或工作流更新时运行一次，便于验证；公开 JSON 提交不会触发循环。
   push:
